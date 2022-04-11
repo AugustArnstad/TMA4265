@@ -1,0 +1,166 @@
+---
+title: "StokMod project 1"
+author: "August, Felix, Ulrik"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+#  pdf_document
+ html_document
+---
+  
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE,tidy=TRUE,message=FALSE,warning=FALSE,strip.white=TRUE,prompt=FALSE,
+                      cache=TRUE, size="scriptsize",fig.width=4, fig.height=3)
+```
+
+```{r,eval=TRUE,echo=FALSE}
+library(knitr)
+library(rmarkdown)
+library(MASS)
+library(ISLR)
+library(class) 
+library(caret)
+library(pls)
+library(glmnet)
+library(gam)
+library(gbm)
+library(randomForest)
+library(tree)
+library(ggplot2)
+library(ggfortify)
+library(GGally)
+library(boot)
+library(pROC)
+library(plotROC)
+library(class)
+library(tree)
+library(e1071)
+library(nnet)
+#library(fitnnet) !!!!!!!!!!!!
+library(keras)
+library(leaps)
+library(glmnet)
+library(gam)
+library(kernlab)
+library(pls)
+library(factoextra)
+library(FactoMineR)
+```
+
+# Problem 2
+
+## a) 
+```{r, eval=TRUE, echo=TRUE}
+lambda=1.5
+days=59
+n=10000
+simulations=10
+
+#Analytic probability that on day 59 we have recieved more than 100 claims
+analyticProb = 1-ppois(100, lambda*days)
+print(analyticProb)
+#1000 simulations to approximate the probability
+claims <- rep(0, n)
+count=0
+claims = rpois(n, lambda*days)
+for (i in 1:n){
+  if (claims[i] > 100){
+    count = count + 1
+  }
+}
+
+cat("The number of times in 1000 simulations that there were more than 100 claims on day 59:,", count, ", resulting in a probability of ", count/n, " that the number of claims on day 59 is above 100")
+
+
+#Plot
+plot(NULL, NULL,xlim=c(0,60),ylim=c(0,110),xlab="Days",ylab="Claims",main="Realizations of X(t)",lwd=2)
+realizations=sample.int(1000, 10)
+for (i in 1:simulations){
+  #Random timesteps
+  timeSteps = runif(claims[realizations[i]], 0, days)
+  #Sorting them
+  timeSteps = c(0, sort(timeSteps), days)
+  #Add values
+  claimsCalled = c(0:claims[realizations[i]], claims[realizations[i]])
+  for (j in 1:length(claimsCalled)-1){
+    lines(timeSteps[j:(j+1)], claimsCalled[j:(j+1)], lwd=2, col=i)
+  }
+  abline(h=100)
+}
+
+```
+
+## b) 
+```{r, eval=TRUE, echo=TRUE}
+gamma=10
+Z=rep(0, n)
+#claims vector can be reused from task a)
+for (i in 1:n){
+  for (j in 1:claims[i]){
+    Z[i] = Z[i] + rexp(1, gamma)
+  }
+}
+over8Mill=0
+for (i in Z){
+  if (i>8){
+    over8Mill=over8Mill+1
+  }
+}
+cat("# of times the total claim amount exceeded 8 million in 1000 simulations: ", over8Mill, ", resulting in a probability of ", over8Mill/n)
+
+#Plot
+plot(NULL, NULL,xlim=c(0,60),ylim=c(0,15),xlab="Days",ylab="Total claim amount in mill kr",main="Realizations of Z(t)",lwd=2)
+
+for (i in 1:simulations){
+  timeSteps = runif(Z[realizations[i]], 0, days)
+  #Sorting them
+  timeSteps = c(0, sort(timeSteps), days)
+  Zvalue=c(1:Z[realizations[i]], Z[realizations[i]])
+  for (j in 1:length(Zvalue)-1){
+    lines(timeSteps[j:(j+1)], Zvalue[j:(j+1)], lwd=2, col=i)
+  }
+  abline(h=8)
+}
+
+```
+
+## c) 
+```{r, eval=TRUE, echo=TRUE}
+print(Z)
+
+randomGen=sample.int(1000, 10)
+
+xRealize <- matrix(NA, ncol=simulations, nrow=n)
+for (i in 1:simulations){
+  xRealize[i] = 
+}
+```
+
+## d) 
+```{r, eval=TRUE, echo=TRUE}
+matplot(NA, type='l', lty=1, xlim=c(0, 60), ylim=c(0,15), 
+        ylab='Number of people infected', xlab='Days')
+for (i in 1:simulations){
+  timeSteps = runif(Z[realizations[i]], 0, days)
+  #Sorting them
+  timeSteps = c(0, sort(timeSteps), days)
+  Zvalue=c(1:Z[realizations[i]], Z[realizations[i]])
+  for (j in 1:length(Zvalue)-1){
+    matlines(timeSteps[j:(j+1)], Zvalue[j:(j+1)], lwd=2, col=i)
+  }
+}
+```
+
+## 1e) 
+```{r, eval=TRUE, echo=TRUE}
+
+```
+## 1f)
+```{r, eval=TRUE, echo=TRUE}
+
+```
+
+
+```{r, eval=TRUE, echo=TRUE}
+
+```
