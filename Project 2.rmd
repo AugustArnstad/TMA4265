@@ -1,0 +1,497 @@
+---
+title: "Project 2 StokMod"
+author: 'Candidate number: 10001, 10101, 10034'
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    keep_md: yes            #Lagrer alle figurer jævlig crispy i                             samme mappe(files) som koden så de                               kan brukes clean i LaTex.
+  pdf_document: default
+---
+  
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE,tidy=TRUE,message=FALSE,warning=FALSE,strip.white=TRUE,prompt=FALSE,
+                      cache=TRUE, size="scriptsize",fig.width=7, fig.height=6)
+```
+
+```{r,eval=TRUE,echo=FALSE}
+library(knitr)
+library(rmarkdown)
+library(MASS)
+library(ISLR)
+library(class) 
+library(caret)
+library(pls)
+library(glmnet)
+library(gam)
+library(gbm)
+library(randomForest)
+library(tree)
+library(ggplot2)
+library(ggfortify)
+library(GGally)
+library(boot)
+library(pROC)
+library(plotROC)
+library(class)
+library(tree)
+library(e1071)
+library(nnet)
+#library(fitnnet) !!!!!!!!!!!!
+library(keras)
+library(leaps)
+library(glmnet)
+library(gam)
+library(kernlab)
+library(pls)
+library(factoextra)
+library(FactoMineR)
+library(latex2exp)
+```
+
+# Project 2
+
+## 1b) 
+```{r, eval=TRUE, echo=TRUE}
+set.seed(6)
+#1b) simulation
+#TASK 1 - Simulationfunction
+
+lambda=5
+mu=1/(1/6)
+
+simulate_one <-function(max_time, plotting=TRUE, ylim=20)
+{
+  timesteps = 20000
+  x = rep(0, timesteps) #our queuelength
+  X = rep(0, timesteps) #our number of patients
+  s = rep(0,timesteps) #our sojourn times
+  if(plotting==TRUE){ #We plot if plotting is set to TRUE
+    plot(NULL, NULL, type="l", xlim=c(0, max_time), ylim=c(0, ylim), xlab="Time (hours)", ylab="#of people at the UCC")}
+  
+  count=1
+  for (i in 1:timesteps) #Simulation
+  {
+    if (s[i]>max_time){count=i; break} #We break if we reach T_max
+    X[i+1] = X[i] #We base current value on previous
+    if (x[i] == 0) #If queue is empty
+    {
+      s[i+1] = s[i] + rexp(1, rate=lambda) #Next sojourn time
+      x[i+1] = 1 #One is now in the queue
+      X[i+1] =X[i+1] + 1 
+      
+    }
+    else #if the queue isn't emty
+    {
+      #We get the following expression for the sojourn time
+      s[i+1] = s[i] + rexp(1, rate=(lambda + mu))
+      if ( rbinom(1, 1, lambda/(lambda + mu) ) == 1 ) #if arrival
+      {
+        x[i+1] = x[i] + 1
+        X[i+1] = X[i+1] +1
+      }
+      else{ #else we remove one from the queue.
+        x[i+1] = x[i] - 1
+         X[i+1] = X[i+1]  - 1
+      }
+    }
+    if(plotting==TRUE){ #PLOTTING (in each loop)
+    lines(c(s[i], s[i+1]), c(X[i] ,X[i]) , col="black") }
+    } 
+  
+  if(plotting==TRUE){
+    legend(x="topleft", legend= "Patients in UCC",
+         col="black", lty=1, cex=0.8)
+  }
+  
+  #Removing unneccecary parts of the arrays allocated
+  s[count]= max_time
+  s = s[1:count]
+  X = X[1:count]
+  
+  #PART OF TASK 2:
+  #we find the mean number of patients in the UCC during the period and hence the expected number of people in the UCC;
+  meanX =0
+  for (i in 2:length(s))
+  {
+    meanX = meanX + X[i-1]*(s[i] - s[i-1]) #Weighted average
+  }
+  meanX = meanX / max_time #and divide by the total amount of time
+  
+  
+  return( meanX )
+}
+
+#TASK 1 - Simulate for 50 days;
+
+simulate_one(50*24)
+```
+
+
+```{r, eval=TRUE, echo=TRUE}
+set.seed(6)
+#1b) Expected time
+#TASK 2
+#We find the expected number of patients in the UCC in the function written above, in the last paragraph (marked "TASK 2")
+#From there, we apply Little's law and simply divide by lambda=5 to get the expected time a person is in the UCC:
+
+mean_patients <- simulate_one(50*24, plotting=FALSE)
+mean_time <- mean_patients / lambda
+print(mean_time)
+```
+
+
+```{r, eval=TRUE, echo=TRUE}
+set.seed(1)
+#1b) CI
+#TASK 3
+
+#SAMPLE MEAN
+means_of_X = c(0,30)
+t_crit = 2.045
+for ( j in 1:30) #Running 30 simulation
+{
+  means_of_X[j] = simulate_one(max_time = 24*50, plotting=FALSE)
+  #Saving the sample mean for each run
+}
+mean_of_X = mean(means_of_X)/(lambda) #turns into mean TIME
+
+#SAMPLE VARIANCE
+var_of_X = 0
+for (i in 1:length(means_of_X))
+{
+  var_of_X = var_of_X + ((means_of_X[i]/(lambda)
+                          - mean_of_X)^2)/(29)
+}
+
+
+#We find the CI by first finding the marginal:
+marginal_X = t_crit * sqrt(var_of_X/ 30)
+
+print(marginal_X)
+
+#We print our our expected time (task 2) and our 95% CI:
+print(mean_of_X)
+print(var_of_X)
+strX = paste( "(", mean_of_X - marginal_X, " , ", mean_of_X + marginal_X, " )" , sep="" )
+print(strX)
+```
+
+
+```{r, eval=TRUE, echo=TRUE}
+set.seed(1)
+#1b) plot
+#TASK FOUR
+
+simulate_one(12, plotting=TRUE, ylim=11)
+```
+
+
+
+
+## 1f)
+```{r, eval=TRUE, echo=TRUE}
+set.seed(1)
+p=seq(0, 1, 0.01)   #Thought this was appropriate
+mu=6              #Per hour
+lambda=5          #Per hour
+
+WU=1/(mu-lambda*p)
+WN=mu/((mu-lambda)*(mu-lambda*p))    #Both by formula
+
+plot(p, WN, xlim=c(0,1), ylim=c(0, 6), type="l", col="green", xlab=TeX('$\\p$'), ylab=TeX('Expected time(hours) at UCC'), lwd=2)
+lines(p, WU, col="red", lwd=2)
+
+legend(0, 5, legend=c(TeX('$\\W_{N}$'), TeX('$\\W_{U}$')),
+       col=c("green", "red"), lty=1, lwd=2, cex=2)
+```
+
+## 1g)
+```{r, eval=TRUE, echo=TRUE}
+set.seed(1)
+#1g) Simulation
+
+#1g) - TASK 1
+#We wish to simulate U and N for 50 days. We make a simulation function similar to that of 1 b), but with some extra functionalities.
+
+simulate_both <-function(max_time, plotting_opt=1, plotting=TRUE, ylim=15)
+{
+  timesteps = 20000
+  
+  x = rep(0, timesteps) #our queue
+  U = rep(0, timesteps) #our array of U at each time
+  N = rep(0, timesteps) #our array of N at each time
+  s = rep(0,timesteps) #the sojourn times
+  
+  if(plotting==TRUE){ #a plotting option
+    plot(NULL, NULL, type="l", xlim=c(0, max_time), ylim=c(0, ylim), xlab="Time (hours)", ylab="#of people at the UCC")}
+  
+  count=1
+  for (i in 1:timesteps) #The simulation
+  {
+    if (s[i]>max_time){count=i; break} #if we've reached t_max, we break
+    U[i+1] = U[i] #We base U and N on previous value
+    N[i+1] = N[i]
+    
+    
+    if (x[i] == 0) #If queue is empty it's a pure birth process
+    {
+      s[i+1] = s[i] + rexp(1, rate=lambda) 
+      x[i+1] = 1
+      if(rbinom(1, 1, 0.8) == 1){U[i+1] = U[i+1] +1} #determine which type is arriving.
+      else{N[i+1] = N[i+1] + 1}
+    }
+    else
+    {
+      #We get the following expression for the sojourn time
+      s[i+1] = s[i] + rexp(1, rate=(lambda + mu))
+      if ( rbinom(1, 1, lambda/(lambda + mu) ) == 1 ) #if arrival
+      {
+        x[i+1] = x[i] + 1
+        if(rbinom(1, 1, 0.8) == 1){U[i+1] = U[i+1] +1}
+        else{N[i+1] = N[i+1] + 1}
+      }
+      else{ #else we remove one from the queue.
+        x[i+1] = x[i] - 1
+        if(U[i+1]>0){ U[i+1] = U[i+1]  - 1}
+        else{N[i+1] = N[i+1] - 1}
+      }
+    }
+    if(plotting==TRUE){ #plotting option
+    if (plotting_opt==2){lines(c(s[i], s[i+1]), c(U[i] + N[i],U[i] + N[i]) , col="black")} #just some technicalities for different plotting options.
+    else{lines(c(s[i], s[i+1]), c(N[i],N[i]) , col="black")}
+    lines(c(s[i], s[i+1]), c(U[i], U[i]) , col = "red")}
+  }
+  
+  if(plotting==TRUE){ #Adding a legend
+  if (plotting_opt==2){legend(x="topleft", legend=c("Total", "Urgent"),
+       col=c("black", "red"), lty=1, cex=0.8)}
+  else{legend(x="topleft", legend=c("Non-urgent", "Urgent"),
+       col=c("black", "red"), lty=1, cex=0.8)}
+  }
+  
+  s[count]= max_time #We remove the data which is just zeros.
+  s = s[1:count]
+  U = U[1:count]
+  N = N[1:count]
+  
+  #(FOR TASK 2)
+  #Finding the mean of U and N for the next task
+  meanU =0
+  meanN = 0
+  for (i in 2:length(s))
+  {
+    meanU = meanU + U[i-1]*(s[i] - s[i-1]) #weighted average
+    meanN = meanN + N[i-1]*(s[i] - s[i-1])
+  }
+  meanU = meanU / max_time #and divide by total time
+  meanN = meanN / max_time
+  
+  return( c(meanU , meanN) )
+}
+
+#1g) - TASK 1 - Plotting for 50 days
+simulate_both(max_time=24*50, plotting=TRUE, plotting_opt = 2)
+```
+
+
+```{r, eval=TRUE, echo=TRUE}
+set.seed(1)
+#1 g) - TASK 2
+#We first wish to give an estimate of the expected time in the UCC for both U and N. This simply do through our function (see comments in funciton defined above). Our function returns mean number of patients during the period for both U and N, so by simply deviding by lambda*0.8 and lambda*0.2 respectively
+
+tuple <- simulate_both(50*24, plotting=FALSE)
+mean_time_U <- tuple[1] / (lambda*0.8)
+mean_time_U
+mean_time_N <- tuple[2] / (lambda*0.2)
+mean_time_N 
+
+#We now wish to determine a CI for the expected time for an urgent patient and a normal patient. By using little's law, we can first estimate the expected number of urgent patients in the system to evaluate the expected time in the system, by simply dividing by lambda.
+
+means_of_U = c(0,30)
+means_of_N = c(0,30)
+t_crit = 2.045
+for ( j in 1:30)
+{
+  tuple = simulate_both(max_time = 24*50, plotting=FALSE) ###
+  U = tuple[1]
+  N = tuple[2]
+  means_of_U[j] = U
+  means_of_N[j] = N
+}
+#We then find the mean of U and N and divide by the birthrate lambda*0.8 and lambda*0.2 respectively.
+#to obtain the mean TIME.
+mean_of_U = mean(means_of_U)/(lambda*0.8)  
+mean_of_N = mean(means_of_N)/(lambda*0.2) 
+
+#VARIANCE
+var_of_U = 0
+var_of_N = 0
+
+for (i in 1:length(means_of_U))
+{
+  var_of_U = var_of_U + ((means_of_U[i]/(lambda*0.8)
+                          - mean_of_U)^2)/(29)
+  var_of_N = var_of_N + ((means_of_N[i]/(lambda*0.2)  - mean_of_N)^2)/(29)
+}
+
+#We have thus found the sample mean and sample variance of both quantities. We have left to find the marginal, which is given as a function of the sample variance and the crititcal value of the student t distribution with 30-1=29 degrees of freedom and with an alpha-value equal to 0.025:
+marginal_U = t_crit * sqrt(var_of_U/ 30)
+marginal_N = t_crit * sqrt(var_of_N/ 30)
+
+#Let us now answer the task and print out our estimation of the expected time in the UCC for both the urgent and normal patients together with their belonging confidence interval
+print("U:")
+print(mean_of_U)
+strU = paste( "(", mean_of_U - marginal_U, " , ", mean_of_U + marginal_U, " )" , sep="" )
+print(strU)
+
+print("N:")
+print(mean_of_N)
+strN = paste( "(", mean_of_N - marginal_N, " , ", mean_of_N + marginal_N, " )" , sep="" )
+print(strN)
+```
+
+
+```{r, eval=TRUE, echo=TRUE}
+set.seed(1)
+#1g) - TASK 3
+
+simulate_both(max_time = 12, plotting_opt = 2, ylim=8)
+
+```
+
+## 2a) 
+```{r, eval=TRUE, echo=TRUE}
+set.seed(2)
+
+#For the datapoints
+theta_d=c(0.30, 0.35, 0.39, 0.41, 0.45)  
+y_d=c(0.5, 0.32, 0.40, 0.35, 0.6)
+mu_d=rep(0.5, length(theta_d))  #Constant
+
+#For the approximation
+theta_y=seq(0.25, 0.50, 0.005)
+mu_y=rep(0.5, length(theta_y))  #Constant
+
+
+variance=0.5**2   #Constant
+
+
+#Decided to make a function that returns a distance matrix as this seemed easier to deal with, when multiple correlations were to be calculated.
+corr <- function(theta, theta_conditional){
+  dist=matrix(rep(1, length(theta)*length(theta_conditional)), nrow = length(theta), ncol=length(theta_conditional))
+  for (i in 1:length(theta)){
+    for (j in 1:length(theta_conditional)){
+      dist[i, j] = abs(theta[i] - theta_conditional[j])
+    }
+  }
+  return (dist)
+}
+
+
+#Generic function for the covariance matrix 
+sigma_func <- function(theta, theta_conditional){
+  sigma=matrix(rep(1, length(theta)*length(theta_conditional)), nrow=length(theta), ncol=length(theta_conditional)) 
+  dist=corr(theta, theta_conditional)   
+  for (i in 1:length(theta)){
+    for (j in 1:length(theta_conditional)){
+      sigma[i, j] = variance*(1+15*abs(dist[i, j]))*exp(-15*abs(dist[i, j]))  #Cov=Corr*var
+    }
+  }
+  return (sigma)
+}
+#Returnerer covariansen til input
+
+#Conditional on itself, Sigma_AA, Sigma_BB
+Sigma_y=sigma_func(theta_y, theta_y)
+Sigma_d=sigma_func(theta_d, theta_d)
+Sigma_y_inv=solve(Sigma_y)
+Sigma_d_inv=solve(Sigma_d)
+#Conditional on data, Sigma_AB, Sigma_BA
+SigmaAB=sigma_func(theta_y, theta_d)
+SigmaBA=sigma_func(theta_d, theta_y)
+
+#Finding the mu_c and Sigma_c from formulas
+mu_c=mu_y + SigmaAB %*% Sigma_d_inv %*%(y_d - mu_d) #mean vector
+Sigma_c=Sigma_y - SigmaAB%*%Sigma_d_inv%*%SigmaBA 
+#Covariance matrix
+
+
+
+plot(theta_y, mu_c, xlim=c(0.25, 0.5), ylim=c(0.2, 0.8), type="l", col="blue", xlab=TeX("$\\theta$"), ylab=TeX('$\\mu$ | 5 points'), lwd=2)
+
+
+#Confidence interval with t-value:
+CIfunc <- function(upperOrLower, mu, Sigma, theta){
+  CI=rep(1, length(mu))
+  for (i in 1:length(mu)){
+    CI[i] = mu[i] + upperOrLower * 1.645*sqrt(Sigma[i, i])/sqrt(length(theta))
+  }
+  return (CI)
+}
+
+
+upperCI=CIfunc(1, mu_c, Sigma_c, theta_d)
+lowerCI=CIfunc(-1, mu_c, Sigma_c, theta_d)
+
+lines(theta_y, upperCI, col="green", lwd=2)
+lines(theta_y, lowerCI, col="green", lwd=2)
+points(theta_d, y_d, col="red", pch=19)
+
+```
+
+## 2b) 
+```{r, eval=TRUE, echo=TRUE}
+set.seed(2)
+
+#Transform X to Z by standard formula and R function pnorm
+prob=pnorm((0.30-mu_c)/sqrt(diag(Sigma_c)))
+plot(NULL, NULL, xlim=c(0.25, 0.5), ylim=c(0, 0.25), xlab=TeX("$\\theta$"), ylab=TeX('P(Y($\\theta$)<0.30)'))
+lines(theta_y, prob, lwd=2)
+
+
+```
+
+## 2c) 
+```{r, eval=TRUE, echo=TRUE}
+set.seed(2)
+#Same procedure as in the two previous tasks but with one extra datapoint
+
+#With one additional datapoint, new data is
+theta_d_new=c(0.30, 0.33, 0.35, 0.39, 0.41, 0.45)
+y_d_new=c(0.5, 0.40, 0.32, 0.40, 0.35, 0.6)
+mu_d_new=rep(0.5, length(theta_d_new))
+
+#Conditional on itself, Sigma_BB, SigmaAA is the same
+Sigma_d_new=sigma_func(theta_d_new, theta_d_new)
+Sigma_d_inv_new=solve(Sigma_d_new)
+
+#Conditional on new data, SigmaAB, SigmaBA
+SigmaAB_new=sigma_func(theta_y, theta_d_new)
+SigmaBA_new=sigma_func(theta_d_new, theta_y)
+
+#Finding the mu_c and Sigma_c
+mu_c_new=mu_y + SigmaAB_new%*%Sigma_d_inv_new%*%(y_d_new-mu_d_new)
+Sigma_c_new_NAN=Sigma_y - SigmaAB_new%*%Sigma_d_inv_new%*%SigmaBA_new
+
+#Add a stability matrix to deal with division on zero and other numerical instabilities
+StabilityMatrix=matrix( 10**(-10), nrow=dim(Sigma_c_new_NAN)[1], ncol=dim(Sigma_c_new_NAN)[2])
+
+Sigma_c_new=Sigma_c_new_NAN + StabilityMatrix
+
+plot(theta_y, mu_c_new, type="l", col="blue", xlab=TeX("$\\theta$"), ylab=TeX('$\\mu$ | 6 points'), lwd=2)
+
+
+upperCI_new=CIfunc(1, mu_c_new, Sigma_c_new, theta_d_new)
+lowerCI_new=CIfunc(-1, mu_c_new, Sigma_c_new, theta_d_new)
+
+lines(theta_y, upperCI_new, col="green", lwd=2)
+lines(theta_y, lowerCI_new, col="green", lwd=2)
+points(theta_d_new, y_d_new, col="red", pch=19)
+
+prob_new=pnorm((0.30-mu_c_new)/sqrt(diag(Sigma_c_new)))
+plot(NULL, NULL, xlim=c(0.25, 0.5), ylim=c(0, 0.25), xlab=expression(theta), ylab=TeX('P(Y($\\theta$)<0.30)'))
+lines(theta_y, prob_new, lwd=2)
+
+
+```
